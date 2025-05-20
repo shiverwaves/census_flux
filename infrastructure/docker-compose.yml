@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  db:
+    image: mysql:8.0
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: my_database
+      MYSQL_USER: app_user
+      MYSQL_PASSWORD: app_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  census-pipeline:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - CENSUS_API_KEY=${CENSUS_API_KEY}
+      - DB_CONNECTION_STRING=mysql+pymysql://app_user:app_password@db:3306/my_database
+      - LOG_LEVEL=INFO
+    volumes:
+      - ./logs:/app/logs
+      - ./reports:/app/reports
+
+volumes:
+  db_data:

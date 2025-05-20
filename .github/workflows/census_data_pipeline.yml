@@ -1,0 +1,71 @@
+name: Census Data Pipeline
+
+on:
+  # Run on a schedule (monthly since ACS data updates annually)
+  schedule:
+    - cron: '0 0 1 * *'  # Runs at midnight on the 1st of every month
+  
+  # Allow manual trigger
+  workflow_dispatch:
+  
+  # Run on changes to the data pipeline code
+  push:
+    branches: [ main ]
+    paths:
+      - 'data_pipeline/**'
+
+jobs:
+  run-data-pipeline:
+    runs-on: ubuntu-latest
+    
+    services:
+      # Set up MySQL service for testing
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: ${{ secrets.MYSQL_ROOT_PASSWORD }}
+          MYSQL_DATABASE: my_database
+          MYSQL_USER: app_user
+          MYSQL_PASSWORD: ${{ secrets.MYSQL_PASSWORD }}
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+    
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          
+      # - name: Run data quality tests
+      #   run: |
+      #     python -m pytest tests/data_quality_tests.py
+          
+      - name: Run Census data pipeline
+        env:
+          CENSUS_API_KEY: ${{ secrets.CENSUS_API_KEY }}
+          DB_CONNECTION_STRING: ${{ secrets.DB_CONNECTION_STRING }}
+        run: |
+          python data_pipeline/app.py
+          
+      - name: Verify data load
+        run: |
+          python data_pipeline/verify_data_load.py
+          
+      # - name: Generate data update report
+      #   run: |
+      #     python data_pipeline/generate_report.py
+          
+      # - name: Archive data report
+      #   uses: actions/upload-artifact@v3
+      #   with:
+      #     name: data-update-report
+      #     path: reports/data_update_report.json
