@@ -77,7 +77,7 @@ jobs:
           LOG_LEVEL: INFO
         run: |
           echo "Starting Census data pipeline..."
-          python data_pipeline/hh_fam_type_data.py
+          python data_pipeline/app.py
           echo "✅ Pipeline completed successfully"
           
       - name: Verify data load
