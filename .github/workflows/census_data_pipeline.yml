@@ -23,10 +23,10 @@ jobs:
       mysql:
         image: mysql:8.0
         env:
-          MYSQL_ROOT_PASSWORD: root_password
-          MYSQL_DATABASE: census_flux
-          MYSQL_USER: census_user
-          MYSQL_PASSWORD: app_password
+          MYSQL_ROOT_PASSWORD: "root_password_123"
+          MYSQL_DATABASE: "census_flux"
+          MYSQL_USER: "census_user"
+          MYSQL_PASSWORD: "app_password_123"
         ports:
           - 3306:3306
         # Health check to ensure MySQL is ready
