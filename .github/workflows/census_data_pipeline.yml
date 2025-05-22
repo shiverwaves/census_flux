@@ -1,4 +1,4 @@
-name: Census Data Pipeline
+name: Census Flux Data Pipeline with MySQL Service
 
 on:
   # Run on a schedule (monthly since ACS data updates annually)
@@ -18,22 +18,28 @@ jobs:
   run-data-pipeline:
     runs-on: ubuntu-latest
     
+    # MySQL service container - GitHub Actions starts this automatically
     services:
-      # Set up MySQL service for testing
       mysql:
         image: mysql:8.0
         env:
-          MYSQL_ROOT_PASSWORD: ${{ secrets.MYSQL_ROOT_PASSWORD }}
-          MYSQL_DATABASE: my_database
-          MYSQL_USER: app_user
-          MYSQL_PASSWORD: ${{ secrets.MYSQL_PASSWORD }}
+          MYSQL_ROOT_PASSWORD: root_password
+          MYSQL_DATABASE: census_flux
+          MYSQL_USER: census_user
+          MYSQL_PASSWORD: app_password
         ports:
           - 3306:3306
-        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+        # Health check to ensure MySQL is ready
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+          --health-start-period=30s
     
     steps:
       - name: Check out repository code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -45,27 +51,78 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           
-      # - name: Run data quality tests
-      #   run: |
-      #     python -m pytest tests/data_quality_tests.py
+      - name: Wait for MySQL to be ready
+        run: |
+          # Additional wait to ensure MySQL is fully ready
+          sleep 10
+          mysql --host=127.0.0.1 --port=3306 -u census_user -papp_password -e "SELECT 1" census_flux
+          
+      - name: Initialize database schema
+        run: |
+          # Run your database initialization script
+          mysql --host=127.0.0.1 --port=3306 -u census_user -papp_password census_flux < sql/init.sql
+          
+      - name: Create logs and reports directories
+        run: |
+          mkdir -p logs reports
+          
+      - name: Run data quality tests
+        env:
+          DB_CONNECTION_STRING: "mysql+pymysql://census_user:app_password@127.0.0.1:3306/census_flux"
+        run: |
+          python -m pytest tests/ -v
           
       - name: Run Census data pipeline
         env:
           CENSUS_API_KEY: ${{ secrets.CENSUS_API_KEY }}
-          DB_CONNECTION_STRING: ${{ secrets.DB_CONNECTION_STRING }}
+          DB_CONNECTION_STRING: "mysql+pymysql://census_user:app_password@127.0.0.1:3306/census_flux"
+          LOG_LEVEL: INFO
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
         run: |
-          python data_pipeline/app.py
+          python data_pipeline/hh_fam_type_data.py
           
       - name: Verify data load
+        env:
+          DB_CONNECTION_STRING: "mysql+pymysql://census_user:app_password@127.0.0.1:3306/census_flux"
         run: |
           python data_pipeline/verify_data_load.py
           
-      # - name: Generate data update report
-      #   run: |
-      #     python data_pipeline/generate_report.py
+      - name: Export data for backup/analysis
+        run: |
+          # Export the processed data
+          mysqldump --host=127.0.0.1 --port=3306 -u census_user -papp_password \
+            --single-transaction --routines --triggers \
+            census_flux > reports/census_flux_backup_$(date +%Y%m%d).sql
           
-      # - name: Archive data report
-      #   uses: actions/upload-artifact@v3
-      #   with:
-      #     name: data-update-report
-      #     path: reports/data_update_report.json
+      - name: Generate data update report
+        env:
+          DB_CONNECTION_STRING: "mysql+pymysql://census_user:app_password@127.0.0.1:3306/census_flux"
+        run: |
+          python data_pipeline/generate_report.py
+          
+      - name: Archive artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: census-flux-data-${{ github.run_number }}
+          path: |
+            reports/
+            logs/
+          retention-days: 90
+          
+      - name: Send success notification
+        if: success()
+        run: |
+          if [ -n "${{ secrets.SLACK_WEBHOOK }}" ]; then
+            curl -X POST -H 'Content-type: application/json' \
+              --data '{"text":"✅ Census Flux Pipeline completed successfully! Data updated and archived."}' \
+              ${{ secrets.SLACK_WEBHOOK }}
+          fi
+          
+      - name: Send failure notification
+        if: failure()
+        run: |
+          if [ -n "${{ secrets.SLACK_WEBHOOK }}" ]; then
+            curl -X POST -H 'Content-type: application/json' \
+              --data '{"text":"❌ Census Flux Pipeline failed! Check the logs for details."}' \
+              ${{ secrets.SLACK_WEBHOOK }}
+          fi
