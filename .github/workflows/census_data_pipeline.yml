@@ -64,7 +64,7 @@ jobs:
       - name: Initialize database schema
         run: |
           echo "Initializing database schema..."
-          mysql --host=127.0.0.1 --port=3306 -u census_user -papp_password_123 census_flux < sql/init.sql
+          mysql --host=127.0.0.1 --port=3306 -u census_user -papp_password_123 census_flux < infrastructure/init.sql
           echo "✅ Database schema initialized"
           
       - name: Create working directories
