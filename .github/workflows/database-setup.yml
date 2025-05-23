@@ -1,0 +1,71 @@
+name: Setup MySQL Database and Populate Data
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:  # Allows manual triggering
+
+jobs:
+  setup-and-populate-database:
+    runs-on: ubuntu-latest
+    
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: rootpassword
+          MYSQL_DATABASE: testdb
+          MYSQL_USER: testuser
+          MYSQL_PASSWORD: testpass
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install mysql-connector-python
+        # Add other dependencies your script needs
+        # pip install -r requirements.txt
+
+    - name: Wait for MySQL to be ready
+      run: |
+        until mysqladmin ping -h "127.0.0.1" -P 3306 -u root -prootpassword --silent; do
+          echo 'Waiting for MySQL...'
+          sleep 2
+        done
+        echo 'MySQL is ready!'
+
+    - name: Initialize database with schema
+      run: |
+        mysql -h 127.0.0.1 -P 3306 -u root -prootpassword testdb < init.sql
+
+    - name: Run Python script to populate database
+      env:
+        DB_HOST: 127.0.0.1
+        DB_PORT: 3306
+        DB_USER: testuser
+        DB_PASSWORD: testpass
+        DB_NAME: testdb
+      run: |
+        python populate_database.py
+
+    - name: Verify database setup (optional)
+      run: |
+        mysql -h 127.0.0.1 -P 3306 -u root -prootpassword -e "USE testdb; SHOW TABLES;" 
+        # Add more verification queries as needed
