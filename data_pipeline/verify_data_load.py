@@ -7,7 +7,7 @@ import json
 from datetime import datetime
 from sqlalchemy import create_engine, text
 
-from ..config import DB_CONNECTION_STRING
+from data_pipeline.config import DB_CONNECTION_STRING
 
 # Set up logging
 logging.basicConfig(
