@@ -7,9 +7,9 @@ import pandas as pd
 from sqlalchemy import create_engine, text
 from datetime import datetime
 
-from data_pipeline.config import BASE_URL, API_KEY, DB_CONNECTION_STRING
-from data_pipeline.utils.census_api import fetch_census_data
-from data_pipeline.utils.data_processing import process_data
+from config import BASE_URL, API_KEY, DB_CONNECTION_STRING
+from utils.census_api import fetch_census_data
+from utils.data_processing import process_data
 
 # Set up logging
 logging.basicConfig(
