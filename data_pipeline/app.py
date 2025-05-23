@@ -243,10 +243,10 @@ def run_pipeline():
         # Fetch and store family type data
         fetch_and_store_family_type(engine)
         
-        # # Calculate probabilities
-        # num_states = calculate_probabilities(engine)
+        # Calculate probabilities
+        num_states = calculate_probabilities(engine)
         
-        # logger.info(f"Successfully completed Census data pipeline for {num_states} states")
+        logger.info(f"Successfully completed Census data pipeline for {num_states} states")
         return True
     except Exception as e:
         logger.error(f"Pipeline failed: {str(e)}")
