@@ -142,89 +142,89 @@ def fetch_and_store_family_type(engine):
         logger.error(f"Error fetching family type data: {str(e)}")
         raise
 
-# def calculate_probabilities(engine):
-#     """Calculate household and family type probabilities and store in database"""
-#     logger.info("Calculating household and family type probabilities")
+def calculate_probabilities(engine):
+    """Calculate household and family type probabilities and store in database"""
+    logger.info("Calculating household and family type probabilities")
     
-#     # Define SQL to create the target table if it doesn't exist
-#     create_table_sql = """
-#     CREATE TABLE IF NOT EXISTS household_family_type_probabilities (
-#         state_code VARCHAR(10),
-#         state_name VARCHAR(100),
-#         married_with_children FLOAT,
-#         married_no_children FLOAT,
-#         single_parent_male FLOAT,
-#         single_parent_female FLOAT,
-#         single_person FLOAT,
-#         other_nonfamily FLOAT,
-#         other_family_male FLOAT,
-#         other_family_female FLOAT,
-#         last_updated DATETIME,
-#         PRIMARY KEY (state_code)
-#     );
-#     """
+    # Define SQL to create the target table if it doesn't exist
+    create_table_sql = """
+    CREATE TABLE IF NOT EXISTS household_family_type_probabilities (
+        state_code VARCHAR(10),
+        state_name VARCHAR(100),
+        married_with_children FLOAT,
+        married_no_children FLOAT,
+        single_parent_male FLOAT,
+        single_parent_female FLOAT,
+        single_person FLOAT,
+        other_nonfamily FLOAT,
+        other_family_male FLOAT,
+        other_family_female FLOAT,
+        last_updated DATETIME,
+        PRIMARY KEY (state_code)
+    );
+    """
     
-#     # SQL to clear existing data
-#     delete_data_sql = "DELETE FROM household_family_type_probabilities;"
+    # SQL to clear existing data
+    delete_data_sql = "DELETE FROM household_family_type_probabilities;"
     
-#     # SQL to calculate probabilities and insert into the target table
-#     insert_probabilities_sql = """
-#     INSERT INTO household_family_type_probabilities (
-#         state_code,
-#         state_name,
-#         married_with_children,
-#         married_no_children,
-#         single_parent_male,
-#         single_parent_female,
-#         single_person,
-#         other_nonfamily,
-#         other_family_male,
-#         other_family_female,
-#         last_updated
-#     )
-#     SELECT 
-#         h.state_code,
-#         s.state_name,
-#         f.married_with_children / h.total_households AS married_with_children,
-#         (h.married_couple - f.married_with_children) / h.total_households AS married_no_children,
-#         f.male_with_children / h.total_households AS single_parent_male,
-#         f.female_with_children / h.total_households AS single_parent_female,
-#         h.living_alone / h.total_households AS single_person,
-#         h.not_living_alone / h.total_households AS other_nonfamily,
-#         (h.male_householder - f.male_with_children) / h.total_households AS other_family_male,
-#         (h.female_householder - f.female_with_children) / h.total_households AS other_family_female,
-#         NOW() AS last_updated
-#     FROM 
-#         household_type h
-#     JOIN 
-#         family_type f ON h.state_code = f.state_code
-#     JOIN 
-#         states s ON h.state_code = s.state_code
-#     WHERE 
-#         h.total_households > 0;
-#     """
+    # SQL to calculate probabilities and insert into the target table
+    insert_probabilities_sql = """
+    INSERT INTO household_family_type_probabilities (
+        state_code,
+        state_name,
+        married_with_children,
+        married_no_children,
+        single_parent_male,
+        single_parent_female,
+        single_person,
+        other_nonfamily,
+        other_family_male,
+        other_family_female,
+        last_updated
+    )
+    SELECT 
+        h.state_code,
+        s.state_name,
+        f.married_with_children / h.total_households AS married_with_children,
+        (h.married_couple - f.married_with_children) / h.total_households AS married_no_children,
+        f.male_with_children / h.total_households AS single_parent_male,
+        f.female_with_children / h.total_households AS single_parent_female,
+        h.living_alone / h.total_households AS single_person,
+        h.not_living_alone / h.total_households AS other_nonfamily,
+        (h.male_householder - f.male_with_children) / h.total_households AS other_family_male,
+        (h.female_householder - f.female_with_children) / h.total_households AS other_family_female,
+        NOW() AS last_updated
+    FROM 
+        household_type h
+    JOIN 
+        family_type f ON h.state_code = f.state_code
+    JOIN 
+        states s ON h.state_code = s.state_code
+    WHERE 
+        h.total_households > 0;
+    """
     
-#     try:
-#         with engine.connect() as connection:
-#             # Create the table if it doesn't exist
-#             connection.execute(text(create_table_sql))
-#             connection.commit()
+    try:
+        with engine.connect() as connection:
+            # Create the table if it doesn't exist
+            connection.execute(text(create_table_sql))
+            connection.commit()
             
-#             # Clear existing data
-#             connection.execute(text(delete_data_sql))
-#             connection.commit()
+            # Clear existing data
+            connection.execute(text(delete_data_sql))
+            connection.commit()
             
-#             # Calculate probabilities and insert into the table
-#             connection.execute(text(insert_probabilities_sql))
-#             connection.commit()
+            # Calculate probabilities and insert into the table
+            connection.execute(text(insert_probabilities_sql))
+            connection.commit()
             
-#             # Verify the results
-#             result_count = connection.execute(text("SELECT COUNT(*) FROM household_family_type_probabilities")).scalar()
-#             logger.info(f"Calculated probabilities for {result_count} states")
-#             return result_count
-#     except Exception as e:
-#         logger.error(f"Error calculating probabilities: {str(e)}")
-#         raise
+            # Verify the results
+            result_count = connection.execute(text("SELECT COUNT(*) FROM household_family_type_probabilities")).scalar()
+            logger.info(f"Calculated probabilities for {result_count} states")
+            return result_count
+    except Exception as e:
+        logger.error(f"Error calculating probabilities: {str(e)}")
+        raise
 
 def run_pipeline():
     """Main function to run the full data pipeline"""
