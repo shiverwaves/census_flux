@@ -141,7 +141,64 @@ def fetch_and_store_family_type(engine):
     except Exception as e:
         logger.error(f"Error fetching family type data: {str(e)}")
         raise
+def fetch_and_store_race_pop(engine):
+    """Fetch racial population data and store in database"""
+    logger.info("Fetching race data")
+    vars = [
+        "B02001_001E",  # Total population
+        "B02001_002E",  # White alone
+        "B03003_003E"   # Hispanic or Latino
+        "B02001_003E",  # Black or African American alone
+        "B02001_004E",  # American Indian and Alaska Native alone
+        "B02001_005E",  # Asian alone
+        "B02001_006E",  # Native Hawaiian and Other Pacific Islander alone
+        "B02001_007E",  # Some other race alone
+        "B02001_008E"   # Two or more races
+    ]
 
+    try:
+        # Fetch race data
+        data = fetch_census_data(BASE_URL, vars, "state:*", API_KEY)
+        
+        # Process data
+        header = data[0]
+        total_pop_idx = header.index('B02001_001E')
+        white_pop_idx = header.index('B02001_002E')
+        hisp_pop_idx = header.index('B03003_003E')
+        black_pop_idx = header.index('B02001_003E')
+        aian_pop_idx = header.index('B02001_004E')
+        asian_pop_idx = header.index('B02001_005E')
+        nhpi_pop_idx = header.index('B02001_006E')
+        other_pop_idx = header.index('B02001_007E')
+        multiracial_pop_idx = header.index('B02001_008E')
+        
+        race_data = []
+        for row in data[1:]:
+            # Approximately 65% of Hispanics identify as White
+            white_nonhisp_count = int(row[white_pop_idx]) - (int(row[hisp_pop_idx]) * 0.65)
+            race_dist_data.append({        
+                'state_code': row[header.index('state')],
+                'total_pop': int(row[total_pop_idx]),
+                'white_pop': white_nonhisp_count,
+                'hisp_pop': int(row[hisp_pop_idx]),
+                'black_pop': int(row[black_pop_idx]),
+                'aian_pop': int(row[aian_pop_idx]),
+                'asian_pop': int(row[asian_pop_idx]),
+                'nhpi_pop': int(row[nhpi_pop_idx]),
+                'other_pop': int(row[other_pop_idx]),
+                'multiracial_pop': int(row[multiracial_pop_idx]),
+                'last_updated': datetime.now()
+            })
+    
+        # Create DataFrame and update database
+        race_pop_df = pd.DataFrame(race_data)
+        race_pop_df.to_sql('race_pop', engine, if_exists='replace', index=False)
+        logger.info(f"Stored {len(race_pop_df)} races in database")
+        return states_df
+    except Exception as e:
+        logger.error(f"Error fetching race data: {str(e)}")
+        raise
+        
 def calculate_probabilities(engine):
     """Calculate household and family type probabilities and store in database"""
     logger.info("Calculating household and family type probabilities")
@@ -242,6 +299,9 @@ def run_pipeline():
         
         # Fetch and store family type data
         fetch_and_store_family_type(engine)
+
+        # Fetch and store racial population data
+        fetch_and_store_race_pop(engine)
         
         # Calculate probabilities
         num_states = calculate_probabilities(engine)
