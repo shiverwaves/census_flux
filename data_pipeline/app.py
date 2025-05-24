@@ -141,6 +141,7 @@ def fetch_and_store_family_type(engine):
     except Exception as e:
         logger.error(f"Error fetching family type data: {str(e)}")
         raise
+        
 def fetch_and_store_race_pop(engine):
     """Fetch racial population data and store in database"""
     logger.info("Fetching race data")
